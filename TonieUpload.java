@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -87,6 +88,11 @@ public class TonieUpload implements Callable<Integer> {
         if (isBlank(username) || isBlank(password)) {
             System.err.printf("Please set the %s and %s environment variables.%n", ENV_USERNAME, ENV_PASSWORD);
             return 2;
+        }
+
+        if (!list) {
+            checkExecutable(ytDlp, "--version", "yt-dlp", "install it or specify its path with --yt-dlp");
+            checkExecutable("ffmpeg", "-version", "ffmpeg", "install it and add it to your PATH");
         }
 
         TonieHandler tonieHandler = new TonieHandler();
@@ -194,6 +200,32 @@ public class TonieUpload implements Callable<Integer> {
     record Download(Path file, String title, float durationSeconds) {
     }
 
+    static void checkExecutable(String executable, String versionOption, String name, String guidance)
+            throws IOException, InterruptedException {
+        Process process;
+        try {
+            process = new ProcessBuilder(executable, versionOption)
+                    .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                    .redirectError(ProcessBuilder.Redirect.INHERIT)
+                    .start();
+        } catch (IOException e) {
+            throw new IOException("Could not run " + name + " ('" + executable + "'); " + guidance + ".", e);
+        }
+        try {
+            if (!process.waitFor(30, TimeUnit.SECONDS)) {
+                throw new IOException(name + " ('" + executable + "') did not respond within 30 seconds.");
+            }
+            if (process.exitValue() != 0) {
+                throw new IOException(name + " ('" + executable + "') exited with code "
+                        + process.exitValue() + " during the prerequisite check.");
+            }
+        } finally {
+            if (process.isAlive()) {
+                process.destroyForcibly();
+            }
+        }
+    }
+
     /**
      * Uses yt-dlp (which uses ffmpeg) to extract the audio of the given URL as mp3 into the given directory.
      */
@@ -224,6 +256,7 @@ public class TonieUpload implements Callable<Integer> {
     static List<String> buildYtDlpCommand(String ytDlp, String url, Path workDir) {
         return List.of(ytDlp,
                 "--no-playlist",
+                "--encoding", "utf-8",
                 "--extract-audio", "--audio-format", "mp3",
                 "--output", workDir.resolve("%(id)s.%(ext)s").toString(),
                 "--no-simulate",

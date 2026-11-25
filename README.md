@@ -12,7 +12,11 @@ It strings together:
 ## Prerequisites
 
 * [JBang](https://www.jbang.dev) (it will fetch a JDK 17+ if needed)
-* `yt-dlp` and `ffmpeg` on your `PATH`
+* For uploads, `yt-dlp` and `ffmpeg` on your `PATH` (`--yt-dlp` can specify an executable path)
+
+The script checks credentials and upload tools before logging in. Listing Tonies
+does not require `yt-dlp` or `ffmpeg`. JBang and Java must be available before
+the script starts, so the script cannot check them itself.
 
 ## Usage
 
